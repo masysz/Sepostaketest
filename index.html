@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+aa<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -35,6 +35,10 @@
             cursor: not-allowed;
         }
 
+        .input-group {
+            margin: 10px 0;
+        }
+
         .result {
             margin-top: 20px;
         }
@@ -47,6 +51,10 @@
 
         <div>
             <button id="connectWallet" class="btn">Connect Wallet</button>
+        </div>
+
+        <div class="input-group">
+            <input type="number" id="stakeAmount" placeholder="Enter ETH Amount" step="0.01" min="0.01" />
         </div>
 
         <div>
@@ -110,8 +118,14 @@
             const account = await getAccount();
             if (!account) return;
 
-            const amount = web3.utils.toWei('0.1', 'ether'); // Example amount, adjust as needed
-            contract.methods.stake().send({ from: account, value: amount })
+            const amount = document.getElementById('stakeAmount').value;
+            if (amount <= 0) {
+                alert('Please enter a valid ETH amount.');
+                return;
+            }
+
+            const weiAmount = web3.utils.toWei(amount, 'ether');
+            contract.methods.stake().send({ from: account, value: weiAmount })
                 .on('transactionHash', function (hash) {
                     alert('Transaction sent, please confirm it.');
                 })
