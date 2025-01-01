@@ -1,4 +1,4 @@
-h5<!DOCTYPE html>
+ah<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -30,12 +30,10 @@ h5<!DOCTYPE html>
     <p id="totalStaked"></p>
     <p id="yourStake"></p>
     <p id="availableReward"></p>
-    <p id="timeLeft"></p>
 
     <script>
         const contractAddress = "0xdf1cb27014a6bfd0cdde29b90d1533b4ee0a4ef6";
-        const ABI =
-[
+        const ABI = [
 
  {
 
@@ -613,23 +611,24 @@ h5<!DOCTYPE html>
 
  }
 
-]
+];
 
-
-        let web3, contract, accounts;
+        let web3, contract;
 
         document.getElementById('connectButton').addEventListener('click', async () => {
             if (typeof window.ethereum !== 'undefined') {
                 try {
                     await window.ethereum.request({ method: 'eth_requestAccounts' });
                     web3 = new Web3(window.ethereum);
-                    accounts = await web3.eth.getAccounts();
+                    let accounts = await web3.eth.getAccounts(); // Get accounts fresh for each connection
                     contract = new web3.eth.Contract(ABI, contractAddress);
                     document.getElementById('connectButton').innerText = 'Connected';
                     document.getElementById('connectionStatus').innerText = 'Wallet connected successfully!';
-                    enableInteractionControls();
-                    await updateData();
-                    console.log(contract.methods); // Debugging
+                    document.getElementById('stakeAmount').disabled = false;
+                    document.getElementById('stakeButton').disabled = false;
+                    document.getElementById('claimRewardButton').disabled = false;
+                    document.getElementById('withdrawButton').disabled = false;
+                    await updateData(accounts[0]);
                 } catch (error) {
                     document.getElementById('connectionStatus').innerText = `Error: ${error.message}`;
                     console.error("Connection error:", error);
@@ -639,42 +638,51 @@ h5<!DOCTYPE html>
             }
         });
 
-        function enableInteractionControls() {
-            document.getElementById('stakeAmount').disabled = false;
-            document.getElementById('stakeButton').disabled = false;
-            document.getElementById('claimRewardButton').disabled = false;
-            // Withdraw button remains disabled until staking period ends
-        }
+        async function updateData(account) {
+            if (contract) {
+                try {
+                    const totalStaked = await contract.methods.totalStaked().call();
+                    document.getElementById('totalStaked').innerText = `Total Staked: ${web3.utils.fromWei(totalStaked, "ether")} ETH`;
 
-        async function updateData() {
-            if (contract && accounts) {
-                const totalStaked = await contract.methods.totalStaked().call();
-                document.getElementById('totalStaked').innerText = `Total Staked: ${web3.utils.fromWei(totalStaked, "ether")} ETH`;
+                    const yourStake = await contract.methods.stakes(account).call();
+                    document.getElementById('yourStake').innerText = `Your Stake: ${web3.utils.fromWei(yourStake.amount, "ether")} ETH`;
 
-                const yourStake = await contract.methods.stakes(accounts[0]).call();
-                document.getElementById('yourStake').innerText = `Your Stake: ${web3.utils.fromWei(yourStake.amount, "ether")} ETH`;
-
-                const reward = await contract.methods.calculateReward(accounts[0]).call();
-                document.getElementById('availableReward').innerText = `Available Reward: ${web3.utils.fromWei(reward, "ether")}`;
-
-                const timeLeft = await contract.methods.timeLeft().call();
-                document.getElementById('timeLeft').innerText = `Time Left: ${timeLeft > 0 ? web3.utils.fromWei(timeLeft.toString(), 'ether') + ' seconds' : 'Staking period ended'}`;
-                
-                // Disable withdraw button if staking period hasn't ended
-                document.getElementById('withdrawButton').disabled = parseInt(timeLeft) > 0;
+                    const reward = await contract.methods.calculateReward(account).call();
+                    document.getElementById('availableReward').innerText = `Available Reward: ${web3.utils.fromWei(reward, "ether")}`;
+                } catch (error) {
+                    console.error("Update data error:", error);
+                    document.getElementById('connectionStatus').innerText = `Data Update Error: ${error.message}`;
+                }
             }
         }
 
         document.getElementById('stakeButton').addEventListener('click', async () => {
-            // ... Fungsi stake tidak berubah ...
+            if (contract) {
+                try {
+                    let accounts = await web3.eth.getAccounts(); // Refresh accounts to ensure we have the latest
+                    const amount = document.getElementById('stakeAmount').value;
+                    const weiAmount = web3.utils.toWei(amount, 'ether');
+                    const result = await contract.methods.stake().send({
+                        from: accounts[0],
+                        value: weiAmount
+                    });
+                    console.log('Staking transaction hash:', result.transactionHash);
+                    await updateData(accounts[0]);
+                    alert('Staking successful!');
+                } catch (error) {
+                    console.error("Staking failed with error:", error);
+                    alert('Staking failed: ' + error.message);
+                }
+            }
         });
 
         document.getElementById('claimRewardButton').addEventListener('click', async () => {
-            if (contract && accounts) {
+            if (contract) {
                 try {
+                    let accounts = await web3.eth.getAccounts(); // Refresh accounts
                     const result = await contract.methods.claimReward().send({ from: accounts[0] });
                     console.log('Reward claim transaction hash:', result.transactionHash);
-                    await updateData();
+                    await updateData(accounts[0]);
                     alert('Reward claimed successfully!');
                 } catch (error) {
                     console.error("Claiming reward failed:", error);
@@ -684,16 +692,12 @@ h5<!DOCTYPE html>
         });
 
         document.getElementById('withdrawButton').addEventListener('click', async () => {
-            if (contract && accounts) {
+            if (contract) {
                 try {
-                    const timeLeft = await contract.methods.timeLeft().call();
-                    if (parseInt(timeLeft) > 0) {
-                        alert('You cannot withdraw your ETH until the staking period has ended.');
-                        return;
-                    }
+                    let accounts = await web3.eth.getAccounts(); // Refresh accounts
                     const result = await contract.methods.withdraw().send({ from: accounts[0] });
                     console.log('Withdraw transaction hash:', result.transactionHash);
-                    await updateData();
+                    await updateData(accounts[0]);
                     alert('ETH withdrawn successfully!');
                 } catch (error) {
                     console.error("Withdrawal failed:", error);
@@ -701,9 +705,6 @@ h5<!DOCTYPE html>
                 }
             }
         });
-
-        // Regularly update data
-        setInterval(updateData, 10000); // Update every 10 seconds
     </script>
 </body>
 </html>
