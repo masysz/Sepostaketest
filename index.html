@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staking DApp - Token Staking</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3/dist/web3.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        .btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .result {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Token Staking DApp</h1>
+
+        <div>
+            <button id="connectWallet" class="btn">Connect Wallet</button>
+        </div>
+
+        <div>
+            <button id="stakeButton" class="btn" disabled>Stake ETH</button>
+            <button id="claimRewardButton" class="btn" disabled>Claim Reward</button>
+            <button id="withdrawButton" class="btn" disabled>Withdraw Stake</button>
+        </div>
+
+        <div class="result" id="totalStaked">Total Staked: Loading...</div>
+        <div class="result" id="rewardBalance">Reward Balance: Loading...</div>
+
+    </div>
+
+    <script>
+        const stakingContractAddress = '0xdf1cb27014a6bfd0cdde29b90d1533b4ee0a4ef6'; // Replace with your contract address
+        const stakingAbi = [ /* ABI from your contract */ ]; // Replace with your contract ABI
+
+        let web3;
+        let contract;
+
+        // Initialize Web3 and contract
+        async function initialize() {
+            if (window.ethereum) {
+                web3 = new Web3(window.ethereum);
+                await window.ethereum.enable(); // Request wallet access
+                contract = new web3.eth.Contract(stakingAbi, stakingContractAddress);
+                console.log('Contract initialized');
+            } else {
+                alert('Please install MetaMask!');
+            }
+        }
+
+        // Get account from MetaMask
+        async function getAccount() {
+            const accounts = await web3.eth.getAccounts();
+            if (accounts.length > 0) {
+                return accounts[0];
+            } else {
+                alert('No wallet connected');
+                return null;
+            }
+        }
+
+        // Fetch total staked
+        async function fetchTotalStaked() {
+            const totalStaked = await contract.methods.totalStaked().call();
+            document.getElementById('totalStaked').innerText = `Total Staked: ${web3.utils.fromWei(totalStaked, 'ether')} ETH`;
+        }
+
+        // Fetch reward balance
+        async function fetchRewardBalance() {
+            const account = await getAccount();
+            if (!account) return;
+
+            const rewardBalance = await contract.methods.calculateReward(account).call();
+            document.getElementById('rewardBalance').innerText = `Reward Balance: ${web3.utils.fromWei(rewardBalance, 'ether')} Token A`;
+        }
+
+        // Stake ETH
+        async function stakeEth() {
+            const account = await getAccount();
+            if (!account) return;
+
+            const amount = web3.utils.toWei('0.1', 'ether'); // Example amount, adjust as needed
+            contract.methods.stake().send({ from: account, value: amount })
+                .on('transactionHash', function (hash) {
+                    alert('Transaction sent, please confirm it.');
+                })
+                .on('receipt', function (receipt) {
+                    alert('Stake successful!');
+                    fetchTotalStaked();
+                    fetchRewardBalance();
+                });
+        }
+
+        // Claim Reward
+        async function claimReward() {
+            const account = await getAccount();
+            if (!account) return;
+
+            contract.methods.claimReward().send({ from: account })
+                .on('transactionHash', function (hash) {
+                    alert('Claiming reward...');
+                })
+                .on('receipt', function (receipt) {
+                    alert('Reward claimed successfully!');
+                    fetchRewardBalance();
+                });
+        }
+
+        // Withdraw Stake
+        async function withdrawStake() {
+            const account = await getAccount();
+            if (!account) return;
+
+            contract.methods.withdraw().send({ from: account })
+                .on('transactionHash', function (hash) {
+                    alert('Withdraw initiated...');
+                })
+                .on('receipt', function (receipt) {
+                    alert('Withdrawal successful!');
+                    fetchTotalStaked();
+                });
+        }
+
+        // Initialize and add event listeners
+        async function setup() {
+            await initialize();
+
+            document.getElementById('connectWallet').addEventListener('click', async () => {
+                await getAccount();
+                fetchTotalStaked();
+                fetchRewardBalance();
+                document.getElementById('stakeButton').disabled = false;
+                document.getElementById('claimRewardButton').disabled = false;
+                document.getElementById('withdrawButton').disabled = false;
+            });
+
+            document.getElementById('stakeButton').addEventListener('click', stakeEth);
+            document.getElementById('claimRewardButton').addEventListener('click', claimReward);
+            document.getElementById('withdrawButton').addEventListener('click', withdrawStake);
+        }
+
+        setup();
+    </script>
+</body>
+</html>
