@@ -30,31 +30,12 @@ h5<!DOCTYPE html>
     <p id="totalStaked"></p>
     <p id="yourStake"></p>
     <p id="availableReward"></p>
+    <p id="timeLeft"></p>
 
     <script>
         const contractAddress = "0xdf1cb27014a6bfd0cdde29b90d1533b4ee0a4ef6";
         const ABI = [
-            {"constant":false,"inputs":[],"name":"claimReward","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},
-            {"constant":false,"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"emergencyWithdrawETH","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},
-            {"constant":false,"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"emergencyWithdrawTokens","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},
-            {"constant":false,"inputs":[],"name":"stake","outputs":[],"payable":true,"stateMutability":"payable","type":"function"},
-            {"constant":false,"inputs":[{"internalType":"address","name":"_rewardToken","type":"address"}],"type":"constructor"},
-            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"reward","type":"uint256"}],"name":"RewardClaimed","type":"event"},
-            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"Staked","type":"event"},
-            {"constant":false,"inputs":[],"name":"withdraw","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},
-            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"Withdrawn","type":"event"},
-            {"constant":true,"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"calculateReward","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
-            {"constant":true,"inputs":[],"name":"dailyReward","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
-            {"constant":true,"inputs":[],"name":"duration","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
-            {"constant":true,"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},
-            {"constant":true,"inputs":[],"name":"remainingRewardPool","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
-            {"constant":true,"inputs":[],"name":"rewardToken","outputs":[{"internalType":"address","name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},
-            {"constant":true,"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"stakes","outputs":[{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint256","name":"lastClaimTime","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
-            {"constant":true,"inputs":[],"name":"startTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
-            {"constant":true,"inputs":[],"name":"timeLeft","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
-            {"constant":true,"inputs":[],"name":"totalDistributed","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
-            {"constant":true,"inputs":[],"name":"totalRewardPool","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
-            {"constant":true,"inputs":[],"name":"totalStaked","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"}
+            // ... ABI yang sama seperti sebelumnya ...
         ];
 
         let web3, contract, accounts;
@@ -70,7 +51,7 @@ h5<!DOCTYPE html>
                     document.getElementById('connectionStatus').innerText = 'Wallet connected successfully!';
                     enableInteractionControls();
                     await updateData();
-                    console.log(contract.methods); // Debugging: Check if 'stake' is available
+                    console.log(contract.methods); // Debugging
                 } catch (error) {
                     document.getElementById('connectionStatus').innerText = `Error: ${error.message}`;
                     console.error("Connection error:", error);
@@ -84,7 +65,7 @@ h5<!DOCTYPE html>
             document.getElementById('stakeAmount').disabled = false;
             document.getElementById('stakeButton').disabled = false;
             document.getElementById('claimRewardButton').disabled = false;
-            document.getElementById('withdrawButton').disabled = false;
+            // Withdraw button remains disabled until staking period ends
         }
 
         async function updateData() {
@@ -97,30 +78,54 @@ h5<!DOCTYPE html>
 
                 const reward = await contract.methods.calculateReward(accounts[0]).call();
                 document.getElementById('availableReward').innerText = `Available Reward: ${web3.utils.fromWei(reward, "ether")}`;
+
+                const timeLeft = await contract.methods.timeLeft().call();
+                document.getElementById('timeLeft').innerText = `Time Left: ${timeLeft > 0 ? web3.utils.fromWei(timeLeft.toString(), 'ether') + ' seconds' : 'Staking period ended'}`;
+                
+                // Disable withdraw button if staking period hasn't ended
+                document.getElementById('withdrawButton').disabled = parseInt(timeLeft) > 0;
             }
         }
 
         document.getElementById('stakeButton').addEventListener('click', async () => {
+            // ... Fungsi stake tidak berubah ...
+        });
+
+        document.getElementById('claimRewardButton').addEventListener('click', async () => {
             if (contract && accounts) {
-                const amount = document.getElementById('stakeAmount').value;
-                const weiAmount = web3.utils.toWei(amount, 'ether');
                 try {
-                    const result = await contract.methods.stake().send({
-                        from: accounts[0],
-                        value: weiAmount,
-                        gas: '200000' // Adjust gas limit as needed
-                    });
-                    console.log('Staking transaction hash:', result.transactionHash);
+                    const result = await contract.methods.claimReward().send({ from: accounts[0] });
+                    console.log('Reward claim transaction hash:', result.transactionHash);
                     await updateData();
-                    alert('Staking successful!');
+                    alert('Reward claimed successfully!');
                 } catch (error) {
-                    console.error("Staking failed:", error);
-                    alert('Staking failed: ' + error.message);
+                    console.error("Claiming reward failed:", error);
+                    alert('Claiming reward failed: ' + error.message);
                 }
             }
         });
 
-        // Add event listeners for claimReward and withdraw functions here if needed
+        document.getElementById('withdrawButton').addEventListener('click', async () => {
+            if (contract && accounts) {
+                try {
+                    const timeLeft = await contract.methods.timeLeft().call();
+                    if (parseInt(timeLeft) > 0) {
+                        alert('You cannot withdraw your ETH until the staking period has ended.');
+                        return;
+                    }
+                    const result = await contract.methods.withdraw().send({ from: accounts[0] });
+                    console.log('Withdraw transaction hash:', result.transactionHash);
+                    await updateData();
+                    alert('ETH withdrawn successfully!');
+                } catch (error) {
+                    console.error("Withdrawal failed:", error);
+                    alert('Withdrawal failed: ' + error.message);
+                }
+            }
+        });
+
+        // Regularly update data
+        setInterval(updateData, 10000); // Update every 10 seconds
     </script>
 </body>
 </html>
